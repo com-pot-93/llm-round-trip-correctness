@@ -46,6 +46,14 @@ python evaluation_pipeline.py --llm gemini --model-path ./data/pet/ground_truth 
 
 The `--llm`, `--example` and `--direction` arguments must match the generation run being evaluated, since they are used to locate the corresponding file in `generated_artefacts`.
 
+### Text-model consistency check
+
+[text_model_evaluation.py](./text_model_evaluation.py) is a separate, standalone check: it does not use any generated artefacts. Instead it directly compares the process descriptions and process models already present in [data](./data), to check how consistent a dataset's ground-truth text and ground-truth model are with each other. Results are written as an `.xlsx` file to the [check](./check) directory.
+
+```shell
+python text_model_evaluation.py --dataset pet
+```
+
 ### Datasets
 
 Five datasets are available under [data](./data): `domain`, `mad`, `pet`, `sapsam` and `realset`. Each dataset follows the same layout:
