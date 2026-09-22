@@ -52,6 +52,14 @@ The `--llm`, `--example` and `--direction` arguments must match the generation r
 python text_model_evaluation.py --dataset pet
 ```
 
+### Dataset statistics
+
+[statistic_data.py](./statistic_data.py) computes descriptive statistics over the raw datasets in [data](./data): average sentences and words per process description, and average tasks, events, gateways, pools and lanes per ground-truth model, printed per dataset to stdout.
+
+```shell
+python statistic_data.py
+```
+
 ### Datasets
 
 Five datasets are available under [data](./data): `domain`, `mad`, `pet`, `sapsam` and `realset`. Each dataset follows the same layout:
