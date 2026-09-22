@@ -1,8 +1,5 @@
 # similarity functions for comparing two bpmn instances
 
-
-
-
 from bpmn_schema_helper import get_flows_with_values, get_lanes
 from list_similarity import similarity_SFA
 
@@ -329,3 +326,108 @@ def calculate_similarity_alternative(
 
     }
     return similarity_scores
+
+
+CATEGORY_SET_KEYS = {
+    "task_names": "task_names",
+    "task_types": "task_types",
+    "event_names": "event_names",
+    "event_types": "event_types",
+    "gateway_names": "gateway_names",
+    "gateway_types": "gateway_types",
+    "sequence_flows": "seq_flows_str",
+    "message_flows": "mes_flows_str",
+    "lanes_without_refs": "lanes",
+    "lanes_with_refs": "lanes_with_refs",
+}
+
+
+def calculate_similarity(bpmn_object1, bpmn_object2, method="dice", similarity_threshold=0.7):
+    """Combines calculate_similarity_scores and calculate_similarity_alternative.
+
+    Both functions run the same extract_bpmn_sets + similarity_SFA per category and only differ
+    in how they aggregate the results into an overall score, so this runs each category's
+    similarity_SFA once and derives both aggregations from that single result instead of computing
+    the (expensive, embedding-based) per-category similarities twice.
+    """
+    sets1 = extract_bpmn_sets(bpmn_object1)
+    sets2 = extract_bpmn_sets(bpmn_object2)
+
+    def safe_similarity_SFA(set1, set2):
+        try:
+            return similarity_SFA(set1, set2, method=method, threshold=similarity_threshold)
+        except Exception as e:
+            print(f"Error calculating similarity: {e}")
+            return 0, 0
+
+    def calculate_weighted_score(scores):
+        return weighted_score([{"score": score, "weight": weight} for score, weight in scores])
+
+    sim, union_weight = {}, {}
+    for label, set_key in CATEGORY_SET_KEYS.items():
+        sim[label], union_weight[label] = safe_similarity_SFA(sets1[set_key], sets2[set_key])
+
+    binary_weight = {label: (1 if weight > 0 else weight) for label, weight in union_weight.items()}
+
+    def overall_scores(weight):
+        tasks_overall_sim = calculate_weighted_score([(sim["task_names"], weight["task_names"]), (sim["task_types"], weight["task_types"])])
+        events_overall_sim = calculate_weighted_score([(sim["event_names"], weight["event_names"]), (sim["event_types"], weight["event_types"])])
+        gateways_overall_sim = calculate_weighted_score([(sim["gateway_names"], weight["gateway_names"]), (sim["gateway_types"], weight["gateway_types"])])
+        flows_overall_sim = calculate_weighted_score([(sim["sequence_flows"], weight["sequence_flows"]), (sim["message_flows"], weight["message_flows"])])
+        lanes_overall_sim = calculate_weighted_score([(sim["lanes_without_refs"], weight["lanes_without_refs"]), (sim["lanes_with_refs"], weight["lanes_with_refs"])])
+        return tasks_overall_sim, events_overall_sim, gateways_overall_sim, flows_overall_sim, lanes_overall_sim
+
+    tasks_overall_sim, events_overall_sim, gateways_overall_sim, flows_overall_sim, lanes_overall_sim = overall_scores(union_weight)
+
+    overall = calculate_weighted_score([(sim[label], union_weight[label]) for label in CATEGORY_SET_KEYS])
+
+    scores = {
+        "overall": overall,
+        "tasks_overall": tasks_overall_sim,
+        "task_names": sim["task_names"],
+        "task_types": sim["task_types"],
+        "events_overall": events_overall_sim,
+        "event_names": sim["event_names"],
+        "event_types": sim["event_types"],
+        "gateways_overall": gateways_overall_sim,
+        "gateway_names": sim["gateway_names"],
+        "gateway_types": sim["gateway_types"],
+        "flows_overall": flows_overall_sim,
+        "sequence_flows": sim["sequence_flows"],
+        "message_flows": sim["message_flows"],
+        "lanes_overall": lanes_overall_sim,
+        "lanes_without_refs": sim["lanes_without_refs"],
+        "lanes_with_refs": sim["lanes_with_refs"],
+    }
+
+    alt_tasks_overall_sim, alt_events_overall_sim, alt_gateways_overall_sim, alt_flows_overall_sim, alt_lanes_overall_sim = overall_scores(binary_weight)
+
+    node_count = sum([
+        binary_weight["event_names"] + binary_weight["event_types"] > 0,
+        binary_weight["task_names"] + binary_weight["task_types"] > 0,
+        binary_weight["gateway_names"] + binary_weight["gateway_types"] > 0,
+        binary_weight["lanes_without_refs"] + binary_weight["lanes_with_refs"] > 0,
+    ])
+
+    if node_count == 0:
+        alt_overall = 0
+    else:
+        alt_overall = (
+            0.5 * alt_flows_overall_sim
+            + 0.5 / node_count * alt_tasks_overall_sim
+            + 0.5 / node_count * alt_events_overall_sim
+            + 0.5 / node_count * alt_gateways_overall_sim
+            + 0.5 / node_count * alt_lanes_overall_sim
+        )
+
+    scores_alt = {
+        "overall": alt_overall,
+        "tasks_overall": alt_tasks_overall_sim,
+        "events_overall": alt_events_overall_sim,
+        "gateways_overall": alt_gateways_overall_sim,
+        "flows_overall": alt_flows_overall_sim,
+        "lanes_overall": alt_lanes_overall_sim,
+    }
+
+    return scores, scores_alt
+

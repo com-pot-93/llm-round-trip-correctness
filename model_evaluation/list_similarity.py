@@ -1,6 +1,6 @@
 # similarity functions for comparing two lists
 
-from string_similarity import bert_cosine_optimized
+from text_evaluation.text_similarity import sts_bert, warm_cache
 
 
 def dice_list(list1, list2):
@@ -64,19 +64,21 @@ def scores(list_1, list_2, score_type="precision"):
         raise ValueError("Invalid score type. Use 'precision', 'recall', or 'f1'.")
 
 
-def make_similar_items_equal(list1, list2, similarity_func=bert_cosine_optimized, threshold=0.7):
+def make_similar_items_equal(list1, list2, similarity_func=sts_bert, threshold=0.7):
     """Takes two lists, makes similar items beyond a similarity threshold in list 2 identical to list 1.
 
     Two items are considered similar if the value of them passed to the similarity_func is above the threshold.
     Furthermore an item can be matched as similar only ones and is matched similar with the item from the opponent list
     which has the highest available similairty score. That prevents an inflation of replacements."""
 
+    if similarity_func is sts_bert:
+        warm_cache(list1 + list2)
+
     # compute a matrix of comparisons with the similairty function
     comparison_matrix = {}
     for i1 in range(len(list1)):
         for i2 in range(len(list2)):
-            if (i1, i2) or (i2, i1) not in comparison_matrix:
-                comparison_matrix[(i1, i2)] = similarity_func(list1[i1], list2[i2])
+            comparison_matrix[(i1, i2)] = similarity_func(list1[i1], list2[i2])
 
     # sort matrix by highest scores
     sorted_comparison_matrix = sorted(
@@ -101,32 +103,6 @@ def make_similar_items_equal(list1, list2, similarity_func=bert_cosine_optimized
 
     return list1, list2
 
-
-# def make_similar_items_equal(list1, list2, similarity_func = bert_cosine_optimized, threshold = 0.7):
-#     """Takes two lists, makes similar items beyond a similarity threshold in list 2 identical to list 1."""
-
-#       # compute a matrix of comparisons with the similairty function
-#     comparison_matrix = {}
-
-#     for i in list1:
-#         for j in list2:
-#             if (i, j) or (j, i) not in comparison_matrix:
-#                 comparison_matrix[(i, j)] = similarity_func(i, j)
-
-#     adjusted_list2 = []
-
-#     for element in list2:
-
-#         dicted = {k[0]:v for k,v in comparison_matrix.items() if k[1] == element and v > threshold}
-
-#         if dicted:
-#             adjusted_list2.append(max(dicted, key=dicted.get))
-#         else:
-#             adjusted_list2.append(element)
-
-#     return list1, adjusted_list2
-
-
 def index_list(list):
     """takes a list and adds an index for every item in the list.
     for example takes ["a", "b", "c", "c", "d", "b"]
@@ -143,11 +119,6 @@ def index_list(list):
 
 def similarity_SFA(list1, list2, method="dice", threshold=0.7):
     """similairty metric for lists which is semantic and frequency aware.
-
-    it applies first the function make_similar_items_equal which enables semantic awareness
-    then it applies the function index_list which enables frequency awareness
-    and then it computes the similarity of the two transformed lists, either with dice or jaccard
-
     list1: list of strings (ground truth)
     list2: list of strings
     method: "dice" or "jaccard" or "precision" or "recall" or "f1" """
@@ -160,3 +131,4 @@ def similarity_SFA(list1, list2, method="dice", threshold=0.7):
         return jaccard_list(list1, list2)
     elif method == "precision" or method == "recall" or method == "f1":
         return scores(list1, list2, score_type=method)
+
