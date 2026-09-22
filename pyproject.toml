@@ -26,6 +26,8 @@ ipykernel = "^6.29.4"
 python-dotenv = "^1.0.1"
 datasets = "^2.18.0"
 scikit-learn = "^1.5.0"
+google-genai = "^2.9.0"
+mistralai = "^1.9.11"
 
 [tool.poetry.group.dev.dependencies]
 
@@ -36,9 +38,10 @@ openpyxl = "^3.1.2"
 notebook = "^7.0.6"
 nltk = "^3.9.1"
 matplotlib = "^3.9.2"
-generative-ai-hub-sdk = {extras = ["all"], version = "^3.1.1"}
+sap-ai-sdk-gen = {extras = ["all"], version = "^7.2.0"}
 scipy = "^1.14.1"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
