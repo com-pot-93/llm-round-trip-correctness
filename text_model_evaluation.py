@@ -16,7 +16,7 @@ from openpyxl import Workbook
 
 from text_evaluation import text_similarity
 
-DATA_DIR = '../data'
+DATA_DIR = './data'
 CHECK_DIR = './check'
 TEXT_MODEL_THRESHOLD = 0.65
 
