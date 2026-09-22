@@ -3,10 +3,12 @@
 # Round-trip-correctness to evaluate BPMN generation
 
 ## Description
+This repository is a fork of [SAP-archive/llm-round-trip-correctness](https://github.com/SAP-archive/llm-round-trip-correctness).
+
 This repository tests the idea of a proxy evaluation method for text to BPMN model pipeline.
 The proxy evaluation involves a round-trip pipeline, "text to bpmn to text" or "bpmn to text to bpmn" and calculating an average similarity metric we call RTC in the absence of a ground truth BPMN/text.
-To show if the proxy method is effective, we first must investigate how the existing BPMN to BPMN evaluation from [model_evaluation](./model_evaluation) module correlates with the text to text similarity methods from [text_evaluation](./text_evaluation) by running the pipelines in this repository. 
-This work is inspired by [this](https://arxiv.org/abs/2402.08699) publication on text to code round-tripping.  
+To show if the proxy method is effective, we first must investigate how the existing BPMN to BPMN evaluation from [model_evaluation](./model_evaluation) module correlates with the text to text similarity methods from [text_evaluation](./text_evaluation) by running the pipelines in this repository.
+This work is inspired by [this](https://arxiv.org/abs/2402.08699) publication on text to code round-tripping.
 
 
 
@@ -20,27 +22,38 @@ poetry install
 
 ## Getting started
 
-To run the LLM specific pipeline, use a command similar to this:
+There are two pipelines, meant to be run one after the other from the repository root.
+
+### 1. Generation pipeline
+
+[generation_pipeline.py](./generation_pipeline.py) round-trips models and/or text through an LLM (`m2m`: model to text to model, `t2t`: text to model to text) and writes the generated artefacts as JSON to the [generated_artefacts](./generated_artefacts) directory.
+
 ```shell
-screen -d -m python genai_gpt_pipeline.py --model-path ./data/pet/ground_json --text-path ./data/pet/process_descriptions --example pet --direction t2t 
+python generation_pipeline.py --llm gemini --model-path ./data/pet/ground_truth --text-path ./data/pet/process_descriptions --example pet --direction t2t
 ```
-or run the LLM agnostic pipeline as:
+
+`--llm` selects the model to use: `gpt`, `gemini`, `anthropic` or `mistral`.
+
+### 2. Evaluation pipeline
+
+[evaluation_pipeline.py](./evaluation_pipeline.py) reads the artefacts produced by the generation pipeline and scores them against the ground truth. It writes per-iteration scores as JSON to the [iter_results](./iter_results) directory and averaged, per-file scores as CSV to the [results](./results) directory.
+
 ```shell
-screen -d -m python universal_pipeline.py --llm gemini --model-path ./data/pet/ground_json --text-path ./data/pet/process_descriptions --example pet --direction t2t 
+python evaluation_pipeline.py --llm gemini --model-path ./data/pet/ground_truth --text-path ./data/pet/process_descriptions --example pet --direction t2t
 ```
-The csv files are written to the results directory. The jupyter notebooks are used to visualize the results. 
 
+The `--llm`, `--example` and `--direction` arguments must match the generation run being evaluated, since they are used to locate the corresponding file in `generated_artefacts`.
 
-## Known Issues
-No known issue.
+### Datasets
 
-## How to obtain support
-[Create an issue](https://github.com/SAP-samples/model-to-model-evaluation-code/issues) in this repository if you find a bug or have questions about the content.
+Five datasets are available under [data](./data): `domain`, `mad`, `pet`, `sapsam` and `realset`. Each dataset follows the same layout:
 
+```
+data/<dataset>/ground_truth/          BPMN models in JSON format
+data/<dataset>/process_descriptions/  matching textual process descriptions
+```
 
-
-## Contributing
-If you wish to contribute code, offer fixes or improvements, please send a pull request. Due to legal reasons, contributors will be asked to accept a DCO when they create the first pull request to this project. This happens in an automated fashion during the submission process. SAP uses [the standard DCO text of the Linux Foundation](https://developercertificate.org/).
+Pass the dataset name via `--example` and point `--model-path`/`--text-path` at its `ground_truth`/`process_descriptions` folders, as in the examples above.
 
 ## License
 Copyright (c) 2024 SAP SE or an SAP affiliate company. All rights reserved. This project is licensed under the Apache Software License, version 2.0.
