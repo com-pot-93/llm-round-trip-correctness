@@ -2,7 +2,7 @@
 name = "llm-round-trip-correctness"
 version = "0.1.0"
 description = ""
-authors = ["raheleh <raheleh.hadian@sap.com>"]
+authors = ["blinded for submission"]
 readme = "README.md"
 packages = [
     { include = "round_trip" },
